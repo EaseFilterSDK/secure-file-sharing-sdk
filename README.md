@@ -1,20 +1,96 @@
-# Secure-Share-Example
- A C# secure file sharing with DRM example was implemented with the Transparent File Encryption and Control Filter Driver SDK. The shared file was encrypted with a unique 256-bits key, store the file access policies in a central server, share the encrypted files with fully control. You can grant, revoke or expire the file access at any time, even after the file has been shared. You can add or remove the authorized users, processes and computers at any time. Your application can seamlessly access the encrypted file without any change. The AssureFiles secure agent is integrated with the encryption filter driver, it can decrypt the file in memory transparently if your application is authorized to access the file.
- 
+## Overview
+
+File sharing powers collaboration, but without the right controls, it creates significant risk. Contracts, designs, source code, and financial reports can be leaked, copied, or misused. Traditional access controls stop at the perimeter and rarely follow the file. 
+
+The **EaseFilter DRM Secure File Sharing** solution utilizes Digital Rights Management (DRM) and the powerful EaseFilter File Security SDK to embed policy enforcement directly into the file workflow. This ensures that your sensitive data remains protected across endpoints, servers, hybrid clouds, and external devices.
+
+## Key Features
+
+*   **Granular File Access Control:** Define exactly who can open, read, modify, or delete a file. Scope rules by user identity, process name, device posture, file path, file type, or network location.
+*   **Transparent File Encryption (TFE):** Encrypt data at rest and decrypt on-the-fly only for authorized processes. Files remain encrypted even if copied outside the organization, preventing exfiltration.
+*   **Usage Restrictions & View-Only:** Block printing, copy-pasting, screen capture, and bulk exporting. Set view-only permissions for external collaboration and enforce dynamic watermarks.
+*   **Secure Collaboration & Rapid Revocation:** Safely share files with partners and clients while retaining full owner control. Revoke access instantly or set auto-expiry dates and view limits.
+*   **Auditing, Visibility & Compliance:** Capture detailed, forensic-level logs of every open, read, write, rename, and delete event to support GDPR, HIPAA, SOX, and ISO 27001 compliance.
+*   **Cross-Environment Protection:** Enforce consistent DRM policies across local storage, network shares, VDI, and hybrid cloud environments.
+
+## Architecture
+
+At the core of the EaseFilter solution is a robust, kernel-mode file system filter driver that intercepts Input/Output (I/O) requests at the lowest, most privileged level of the OS.
 ![File Monitor](https://www.easefilter.com/Images/SecureSharing.png)
 
-Safeguard file sharing without boundaries
+1.  **The Kernel Mode Layer (The Enforcer):** Intercepts every file I/O request. Performs high-speed, on-the-fly AES encryption and decryption, making the process invisible to authorized end-users with minimal performance overhead.
+2.  **The User Mode Layer (The Policy Engine):** Acts as the bridge between the kernel driver and central management. Evaluates intercepted requests against defined rules and records all allowed or denied actions for auditing.
+3.  **The Central Management Server (The Brain):** Integrates with IAM providers (like Active Directory), stores security policies, and manages DRM encryption keys. Keys are delivered in real-time only upon access approval and are destroyed when the session ends.
 
-The secure file sharing combines AES 256-bit encryption with digital rights management to give businesses persistent control over all stages of its life, enables employees to share files with anyone, via any method, without compromising business data or risking liability from data loss.
+## How It Works: The File Access Workflow
 
-Dynamically control file access
+When a user attempts to open a protected file, the following sequence occurs instantly and silently:
 
-The secure file sharing solution helps organizations prevent data breaches caused by internal and external threats by enhancing access control to critical business applications and data. It integrates DRM policy with leading enterprise and cloud applications to provide access control, data protection, and activity monitoring and reporting.
+1.  **Interception:** The user attempts to open a sensitive file (e.g., `Financial_Q3.xlsx`). The Filter Driver intercepts the read request in Kernel Mode.
+2.  **Policy Check:** The driver pauses the request and queries the User Mode Policy Engine to check permissions.
+3.  **Verification:** The Policy Engine consults the Central Management Server to verify user identity, device status, and the file's security policy.
+4.  **Action & Decryption:** 
+    *   *If Approved:* The Central Server releases the encryption key to the Kernel Module, which decrypts the file on the fly for the authorized application (e.g., Excel).
+    *   *If Denied:* The request is immediately blocked, and the file remains encrypted.
+5.  **Auditing:** The outcome (who, what, where, when, and result) is securely logged.
 
-Keep tracking and auditing to the shared files
+## Example Implementation (C#)
 
-With the complete file access live tracking report, you can monitor who, when and where files are being accessed with the user and process information, computer identities and geo-location, also know all the unauthorized user information when unauthorized attempts are made and you can proactively block data leakage.
+Below is a quick start example demonstrating how to set up an auto-encryption filter rule with DRM protection using the EaseFilter SDK.
 
+```csharp
+using System;
+using EaseFilter.FilterControl;
+
+class DRMExample 
+{
+    static void Main(string[] args) 
+    {
+		// Protect sensitive project documents with DRM
+        FileFilter autoEncryptFilter = new FileFilter(@"C:\Projects\Confidential\*");
+                
+        // Enable auto-encryption for newly created files in this folder
+        autoEncryptFilter.EnableEncryption = true; 
+        
+        // Retrieve encryption key and IV from the centralized service
+        autoEncryptFilter.EnableEncryptionKeyFromService = true; 
+        
+        // Authorize encryption/decryption for every file via callback
+        autoEncryptFilter.OnFilterRequestEncryptKey += OnFilterRequestEncryptKey; 
+        
+        // Set the 256-bit encryption key with a passphrase (Example)
+        autoEncryptFilter.EncryptionKey = Utils.GetKeyByPassPhrase("passPhrase", 32); 
+        
+        // Prevent unauthorized processes/users from reading raw encrypted data
+        autoEncryptFilter.EnableReadEncryptedData = false; 
+        
+        FilterControl.AddFilter(autoEncryptFilter);
+        
+        // Initialize and start the filter driver
+        string lastError = "";
+        FilterControl.StartFilter(filterType, serviceThreads, connectionTimeOut, licenseKey, ref lastError); 
+        
+        Console.WriteLine("DRM protection enabled. Press Enter to stop...");
+        Console.ReadLine();
+        
+        FilterControl.StopFilter();
+    }
+
+    // Callback function to handle key requests from the service
+    private static void OnFilterRequestEncryptKey(object sender, FilterRequestEventArgs e)
+    {
+        // Custom logic to fetch and authorize the decryption key from the Central Management Server
+    }
+}
+```
+
+## Business Benefits
+
+*   **Stronger Security:** Files stay protected both inside and outside your corporate environment.
+*   **Prevent Data Leaks:** Stop accidental sharing and malicious exfiltration.
+*   **Enable Remote & Cloud Work:** Collaborate safely with contractors, clients, and distributed teams without losing control over your data.
+*   **Meet Compliance:** Simplify regulatory reporting (GDPR, HIPAA, SOX, etc.) with comprehensive, auditable logs.
+*   **Resilience:** Drastically reduce the risk associated with insider threats, malware, and ransomware targeting your critical files.
 [Read more about secure file sharing example](https://www.easefilter.com/Forums_Files/AssureFiles_Secure_File_Sharing.htm)
 
 ## EaseFilter File System Filter Driver SDK Reference
@@ -56,6 +132,17 @@ With the complete file access live tracking report, you can monitor who, when an
 * [Filter Driver Developer Guide](https://www.easefilter.com/kb/DeveloperGuide.htm)
 * [MiniFilter Filter Driver Framework](https://www.easefilter.com/kb/minifilter-framework.htm)
 * [Isolation Filter Driver](https://www.easefilter.com/kb/Isolation_Filter_Driver.htm)
+
+## License
+
+This repository contains two distinct licensing categories:
+
+1. **Wrapper/Implementation Code (MIT License):** 
+   The source code, scripts, and configuration files provided directly in this repository are licensed under the [MIT License](LICENSE). You are free to modify, distribute, and use this specific integration code.
+
+2. **EaseFilter SDK (Commercial License):**
+   This project requires the EaseFilter SDK (including its binaries, filter drivers, and core libraries) to function. The EaseFilter SDK is **proprietary commercial software** and is strictly excluded from the MIT License.   
+   To use the EaseFilter SDK for commercial purposes or in a production environment, you must obtain a valid commercial license directly from [EaseFilter](https://www.easefilter.com/license.pdf).
 
 ## Support
 If you have questions or need help, please contact support@easefilter.com 
